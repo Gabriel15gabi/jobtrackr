@@ -1,40 +1,21 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { getJob, updateJob, STATUS_OPTIONS, STATUS_LABELS } from "../services/jobs.js";
+import { useState } from "react";
+import { addJob, STATUS_OPTIONS, STATUS_LABELS } from "../services/jobs.js";
+import { useNavigate, Link } from "react-router-dom";
 
-function toInputDate(v) {
-  if (!v) return new Date().toISOString().slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-  const d = new Date(v);
-  return isNaN(d) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
-}
+const today = new Date().toISOString().slice(0, 10);
 
-export default function Edit() {
-  const { id } = useParams();
+export default function Add() {
   const navigate = useNavigate();
-  const [form, setForm] = useState(null);
+  const [form, setForm] = useState({
+    title: "",
+    company: "",
+    status: "applied",
+    date: today,
+    link: "",
+    notes: "",
+    tags: "",    // coma separada
+  });
   const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    const job = getJob(id);
-    if (!job) {
-      alert("Candidatura no encontrada.");
-      navigate("/dashboard");
-      return;
-    }
-    setForm({
-      id: job.id,
-      title: String(job.title ?? ""),
-      company: String(job.company ?? ""),
-      status: STATUS_OPTIONS.includes(job.status) ? job.status : "applied",
-      date: toInputDate(job.date),
-      link: String(job.link ?? ""),
-      notes: String(job.notes ?? ""),
-      tags: Array.isArray(job.tags) ? job.tags.join(", ") : String(job.tags ?? ""),
-    });
-  }, [id, navigate]);
-
-  if (!form) return <p className="p-4">Cargando…</p>;
 
   function onChange(e) {
     const { name, value } = e.target;
@@ -47,7 +28,6 @@ export default function Edit() {
     if (!f.company.trim()) e.company = "La empresa es obligatoria.";
     if (f.link && !/^https?:\/\//i.test(f.link)) e.link = "Debe empezar por http:// o https://";
     if (!STATUS_OPTIONS.includes(f.status)) e.status = "Estado inválido.";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date)) e.date = "Fecha inválida.";
     return e;
   }
 
@@ -57,16 +37,7 @@ export default function Edit() {
     setErrors(eObj);
     if (Object.keys(eObj).length) return;
 
-    updateJob(form.id, {
-      title: form.title,
-      company: form.company,
-      status: form.status,
-      date: toInputDate(form.date),
-      link: form.link,
-      notes: form.notes,
-      tags: form.tags, // el servicio lo normaliza a array
-    });
-
+    addJob(form);
     navigate("/dashboard");
   }
 
@@ -77,26 +48,44 @@ export default function Edit() {
     <section className="section">
       <div className="card p-6 space-y-6">
         <header>
-          <h1 className="text-2xl font-semibold">Editar candidatura</h1>
+          <h1 className="text-2xl font-semibold">Nueva candidatura</h1>
+          <p className="text-sm text-gray-500">Completa los datos y guarda. Podrás editarla luego.</p>
         </header>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-sm mb-1">Puesto *</label>
-            <input name="title" value={form.title} onChange={onChange} className={inputBase} />
+            <input
+              name="title"
+              value={form.title}
+              onChange={onChange}
+              className={inputBase}
+              placeholder="Frontend Junior"
+            />
             {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title}</p>}
           </div>
 
           <div>
             <label className="block text-sm mb-1">Empresa *</label>
-            <input name="company" value={form.company} onChange={onChange} className={inputBase} />
+            <input
+              name="company"
+              value={form.company}
+              onChange={onChange}
+              className={inputBase}
+              placeholder="Acme Inc."
+            />
             {errors.company && <p className="text-sm text-red-500 mt-1">{errors.company}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Estado</label>
-              <select name="status" value={form.status} onChange={onChange} className={inputBase}>
+              <select
+                name="status"
+                value={form.status}
+                onChange={onChange}
+                className={inputBase}
+              >
                 {STATUS_OPTIONS.map(key => (
                   <option value={key} key={key}>{STATUS_LABELS[key]}</option>
                 ))}
@@ -106,29 +95,53 @@ export default function Edit() {
 
             <div>
               <label className="block text-sm mb-1">Fecha</label>
-              <input type="date" name="date" value={form.date} onChange={onChange} className={inputBase} />
-              {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date}</p>}
+              <input
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={onChange}
+                className={inputBase}
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Enlace</label>
-            <input name="link" value={form.link} onChange={onChange} className={inputBase} placeholder="https://..." />
+            <label className="block text-sm mb-1">Enlace a la oferta</label>
+            <input
+              name="link"
+              value={form.link}
+              onChange={onChange}
+              className={inputBase}
+              placeholder="https://..."
+            />
             {errors.link && <p className="text-sm text-red-500 mt-1">{errors.link}</p>}
           </div>
 
           <div>
             <label className="block text-sm mb-1">Requisitos</label>
-            <textarea name="notes" value={form.notes} onChange={onChange} rows={4} className={inputBase} />
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={onChange}
+              rows={4}
+              className={inputBase}
+              placeholder="carnet, inglés B2, disponibilidad…"
+            />
           </div>
 
           <div>
             <label className="block text-sm mb-1">Tags (separados por coma)</label>
-            <input name="tags" value={form.tags} onChange={onChange} className={inputBase} placeholder="remoto, junior, madrid" />
+            <input
+              name="tags"
+              value={form.tags}
+              onChange={onChange}
+              className={inputBase}
+              placeholder="remoto, junior, madrid"
+            />
           </div>
 
           <div className="flex gap-2 pt-2">
-            <button type="submit" className="btn-primary">Guardar cambios</button>
+            <button type="submit" className="btn-primary">Guardar</button>
             <Link to="/dashboard" className="btn-ghost">Cancelar</Link>
           </div>
         </form>
